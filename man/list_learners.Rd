@@ -8,7 +8,7 @@ list_learners(outcome_type = "all", installed_only = FALSE)
 }
 \arguments{
 \item{outcome_type}{One of \code{"continuous"}, \code{"binomial"},
-\code{"categorical"}, or \code{"all"} (default).}
+\code{"categorical"}, \code{"ordinal"}, or \code{"all"} (default).}
 
 \item{installed_only}{If \code{TRUE}, only learners whose backend package is
 already installed are returned. Default \code{FALSE}.}
@@ -19,12 +19,13 @@ A tibble with columns \code{learner}, \code{description},
 (when \code{outcome_type = "all"}).
 }
 \description{
-Displays the learners available for use in \code{\link{misl}()}, optionally
-filtered by outcome type and/or whether the required backend package is
-installed.
+Displays the built-in named learners available for use in
+\code{\link{misl}()}. Note that any parsnip-compatible model spec can
+also be passed directly via the \code{*_method} arguments.
 }
 \examples{
 list_learners()
 list_learners("continuous")
+list_learners("ordinal")
 list_learners("categorical", installed_only = TRUE)
 }

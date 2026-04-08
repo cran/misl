@@ -2,7 +2,7 @@
 % Please edit documentation in R/misl.R
 \name{misl}
 \alias{misl}
-\title{MISL: Multiple Imputation by Super Learning}
+\title{MISL: Multiple Imputation by Super Learning (v2.0)}
 \usage{
 misl(
   dataset,
@@ -12,6 +12,7 @@ misl(
   con_method = c("glm", "rand_forest", "boost_tree"),
   bin_method = c("glm", "rand_forest", "boost_tree"),
   cat_method = c("rand_forest", "boost_tree"),
+  ord_method = c("polr", "rand_forest", "boost_tree"),
   cv_folds = 5,
   ignore_predictors = NA,
   quiet = TRUE
@@ -27,14 +28,22 @@ Missing values are represented with \code{NA}.}
 
 \item{seed}{Integer seed for reproducibility, or \code{NA} to skip. Default \code{NA}.}
 
-\item{con_method}{Character vector of learner IDs for continuous columns.
+\item{con_method}{Character vector of learner IDs, a list of parsnip model
+specs, or a mixed list of both, for continuous columns.
 Default \code{c("glm", "rand_forest", "boost_tree")}.}
 
-\item{bin_method}{Character vector of learner IDs for binary columns
-(values must be \code{0/1/NA}). Default \code{c("glm", "rand_forest", "boost_tree")}.}
+\item{bin_method}{Character vector of learner IDs, a list of parsnip model
+specs, or a mixed list of both, for binary columns
+(values must be \code{0/1/NA} or a two-level factor). Default
+\code{c("glm", "rand_forest", "boost_tree")}.}
 
-\item{cat_method}{Character vector of learner IDs for categorical columns.
+\item{cat_method}{Character vector of learner IDs, a list of parsnip model
+specs, or a mixed list of both, for unordered categorical columns.
 Default \code{c("rand_forest", "boost_tree")}.}
+
+\item{ord_method}{Character vector of learner IDs, a list of parsnip model
+specs, or a mixed list of both, for ordered categorical columns.
+Default \code{c("polr", "rand_forest", "boost_tree")}.}
 
 \item{cv_folds}{Integer number of cross-validation folds used when stacking
 multiple learners. Reducing this (e.g. to \code{3}) speeds up computation
@@ -58,15 +67,30 @@ iteration, for convergence inspection.}
 Imputes missing values using multiple imputation by super learning.
 }
 \details{
-Supported \code{*_method} values and their required packages:
+Built-in named learners (see \code{\link{list_learners}()}):
 \itemize{
-\item \code{"glm"}          - base R (logistic for binary/categorical, linear for continuous)
+\item \code{"glm"}          - base R (logistic for binary, linear for continuous)
 \item \code{"rand_forest"}  - \pkg{ranger}
 \item \code{"boost_tree"}   - \pkg{xgboost}
 \item \code{"mars"}         - \pkg{earth}
-\item \code{"multinom_reg"} - \pkg{nnet} (categorical only)
+\item \code{"multinom_reg"} - \pkg{nnet} (unordered categorical only)
+\item \code{"polr"}         - \pkg{MASS} (ordered categorical only)
 }
-Use \code{\link{list_learners}()} to explore available options.
+
+Any parsnip-compatible model spec can also be passed directly via the
+\code{*_method} arguments. Named strings and parsnip specs can be mixed
+in the same list:
+\preformatted{
+library(parsnip)
+misl(data,
+  con_method = list(
+    "glm",
+    rand_forest(trees = 500) |> set_engine("ranger")
+  )
+)
+}
+The mode (regression vs classification) is always enforced by \code{misl}
+regardless of what is set on the spec.
 }
 \section{Parallelism}{
 
@@ -79,20 +103,25 @@ plan(multisession, workers = 4)
 result <- misl(data, m = 5)
 plan(sequential)
 }
-The inner cross-validation fits (used for stacking) run sequentially within
-each worker to avoid over-subscribing cores.
 }
 
 \examples{
-# Small self-contained example
+# Using named learners (same as v1.0)
 set.seed(1)
 n <- 100
-demo_data <- data.frame(
-  x1 = rnorm(n),
-  x2 = rnorm(n),
-  y  = rnorm(n)
-)
+demo_data <- data.frame(x1 = rnorm(n), x2 = rnorm(n), y = rnorm(n))
 demo_data[sample(n, 10), "y"] <- NA
-
 misl_imp <- misl(demo_data, m = 2, maxit = 2, con_method = "glm")
+
+# Using a custom parsnip spec
+\dontrun{
+library(parsnip)
+misl_imp <- misl(
+  demo_data, m = 2, maxit = 2,
+  con_method = list(
+    "glm",
+    rand_forest(trees = 500) |> set_engine("ranger")
+  )
+)
+}
 }

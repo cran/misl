@@ -10,7 +10,8 @@ check_datatype(x)
 \item{x}{A vector (one column from the dataset).}
 }
 \value{
-One of \code{"categorical"}, \code{"binomial"}, or \code{"continuous"}.
+One of \code{"categorical"}, \code{"ordinal"}, \code{"binomial"},
+or \code{"continuous"}.
 }
 \description{
 Determine the outcome type of a column

@@ -354,7 +354,8 @@ learning. <em>Statistical Methods in Medical Research</em>.
 <p>Rather than relying on a single parametric imputation model,
 <code>misl</code> builds a stacked ensemble of machine learning
 algorithms for each incomplete column, producing well-calibrated
-imputations for continuous, binary, and categorical variables.</p>
+imputations for continuous, binary, categorical, and ordered categorical
+variables.</p>
 </div>
 <div id="installation" class="section level2">
 <h2>Installation</h2>
@@ -362,11 +363,11 @@ imputations for continuous, binary, and categorical variables.</p>
 <span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a>remotes<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;JustinManjourides/misl&quot;</span>)</span>
 <span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a></span>
 <span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="co"># Optional backend packages for additional learners</span></span>
-<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">&quot;ranger&quot;</span>, <span class="st">&quot;xgboost&quot;</span>, <span class="st">&quot;earth&quot;</span>))</span></code></pre></div>
+<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="fu">install.packages</span>(<span class="fu">c</span>(<span class="st">&quot;ranger&quot;</span>, <span class="st">&quot;xgboost&quot;</span>, <span class="st">&quot;earth&quot;</span>, <span class="st">&quot;MASS&quot;</span>))</span></code></pre></div>
 </div>
 <div id="simulated-data" class="section level2">
 <h2>Simulated data</h2>
-<p>We simulate a small dataset with three types of incomplete variables
+<p>We simulate a small dataset with four types of incomplete variables
 to demonstrate <code>misl</code> across all supported outcome types.</p>
 <div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(misl)</span>
 <span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
@@ -382,44 +383,42 @@ to demonstrate <code>misl</code> across all supported outcome types.</p>
 <span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a>                       <span class="fl">0.3</span> <span class="sc">*</span> <span class="fu">rnorm</span>(n, <span class="at">mean =</span> <span class="dv">26</span>, <span class="at">sd =</span> <span class="dv">4</span>) <span class="sc">+</span> <span class="fu">rnorm</span>(n, <span class="at">sd =</span> <span class="dv">10</span>)),</span>
 <span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>  <span class="co"># Binary outcome with missingness (0 = no, 1 = yes)</span></span>
 <span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>  <span class="at">smoker =</span> <span class="fu">rbinom</span>(n, <span class="dv">1</span>, <span class="at">prob =</span> <span class="fl">0.3</span>),</span>
-<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>  <span class="co"># Categorical outcome with missingness</span></span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>  <span class="co"># Unordered categorical outcome with missingness</span></span>
 <span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a>  <span class="at">group  =</span> <span class="fu">factor</span>(<span class="fu">sample</span>(<span class="fu">c</span>(<span class="st">&quot;A&quot;</span>, <span class="st">&quot;B&quot;</span>, <span class="st">&quot;C&quot;</span>), n, <span class="at">replace =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>                         <span class="at">prob =</span> <span class="fu">c</span>(<span class="fl">0.4</span>, <span class="fl">0.35</span>, <span class="fl">0.25</span>)))</span>
-<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>)</span>
-<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a></span>
-<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a><span class="co"># Introduce missing values</span></span>
-<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>sim_data[<span class="fu">sample</span>(n, <span class="dv">40</span>), <span class="st">&quot;sbp&quot;</span>]    <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
-<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a>sim_data[<span class="fu">sample</span>(n, <span class="dv">30</span>), <span class="st">&quot;smoker&quot;</span>] <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
-<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>sim_data[<span class="fu">sample</span>(n, <span class="dv">30</span>), <span class="st">&quot;group&quot;</span>]  <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>                         <span class="at">prob =</span> <span class="fu">c</span>(<span class="fl">0.4</span>, <span class="fl">0.35</span>, <span class="fl">0.25</span>))),</span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a>  <span class="co"># Ordered categorical outcome with missingness</span></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>  <span class="at">health =</span> <span class="fu">factor</span>(<span class="fu">sample</span>(<span class="fu">c</span>(<span class="st">&quot;Poor&quot;</span>, <span class="st">&quot;Fair&quot;</span>, <span class="st">&quot;Good&quot;</span>, <span class="st">&quot;Excellent&quot;</span>), n,</span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>                         <span class="at">replace =</span> <span class="cn">TRUE</span>, <span class="at">prob =</span> <span class="fu">c</span>(<span class="fl">0.1</span>, <span class="fl">0.2</span>, <span class="fl">0.5</span>, <span class="fl">0.2</span>)),</span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>                  <span class="at">levels  =</span> <span class="fu">c</span>(<span class="st">&quot;Poor&quot;</span>, <span class="st">&quot;Fair&quot;</span>, <span class="st">&quot;Good&quot;</span>, <span class="st">&quot;Excellent&quot;</span>),</span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a>                  <span class="at">ordered =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>)</span>
 <span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a></span>
-<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a><span class="co"># Summarise missingness</span></span>
-<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a><span class="fu">sapply</span>(sim_data, <span class="cf">function</span>(x) <span class="fu">sum</span>(<span class="fu">is.na</span>(x)))</span>
-<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a><span class="co">#&gt;    age    bmi    sbp smoker  group </span></span>
-<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a><span class="co">#&gt;      0      0     40     30     30</span></span></code></pre></div>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a><span class="co"># Introduce missing values</span></span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a>sim_data[<span class="fu">sample</span>(n, <span class="dv">40</span>), <span class="st">&quot;sbp&quot;</span>]    <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>sim_data[<span class="fu">sample</span>(n, <span class="dv">30</span>), <span class="st">&quot;smoker&quot;</span>] <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>sim_data[<span class="fu">sample</span>(n, <span class="dv">30</span>), <span class="st">&quot;group&quot;</span>]  <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a>sim_data[<span class="fu">sample</span>(n, <span class="dv">30</span>), <span class="st">&quot;health&quot;</span>] <span class="ot">&lt;-</span> <span class="cn">NA</span></span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a></span>
+<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a><span class="co"># Summarise missingness</span></span>
+<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a><span class="fu">sapply</span>(sim_data, <span class="cf">function</span>(x) <span class="fu">sum</span>(<span class="fu">is.na</span>(x)))</span>
+<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a><span class="co">#&gt;    age    bmi    sbp smoker  group health </span></span>
+<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a><span class="co">#&gt;      0      0     40     30     30     30</span></span></code></pre></div>
 </div>
-<div id="basic-usage" class="section level2">
-<h2>Basic usage</h2>
-<p>The primary function is <code>misl()</code>. Supply a dataset and
-specify:</p>
-<ul>
-<li><code>m</code> – the number of multiply imputed datasets to
-create</li>
-<li><code>maxit</code> – the number of Gibbs sampling iterations per
-dataset</li>
-<li><code>con_method</code>, <code>bin_method</code>,
-<code>cat_method</code> – learners for each outcome type</li>
-</ul>
-<p>Use <code>list_learners()</code> to see available options:</p>
+<div id="built-in-learners" class="section level2">
+<h2>Built-in learners</h2>
+<p>Use <code>list_learners()</code> to see the available named learners,
+optionally filtered by outcome type:</p>
 <div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">list_learners</span>())</span></code></pre></div>
 <table style="width:100%;">
 <colgroup>
-<col width="12%" />
-<col width="39%" />
-<col width="10%" />
-<col width="8%" />
 <col width="11%" />
-<col width="7%" />
+<col width="36%" />
 <col width="9%" />
+<col width="8%" />
+<col width="10%" />
+<col width="7%" />
+<col width="7%" />
+<col width="8%" />
 </colgroup>
 <thead>
 <tr class="header">
@@ -428,6 +427,7 @@ dataset</li>
 <th align="left">continuous</th>
 <th align="left">binomial</th>
 <th align="left">categorical</th>
+<th align="left">ordinal</th>
 <th align="left">package</th>
 <th align="left">installed</th>
 </tr>
@@ -439,6 +439,7 @@ dataset</li>
 <td align="left">TRUE</td>
 <td align="left">TRUE</td>
 <td align="left">FALSE</td>
+<td align="left">FALSE</td>
 <td align="left">stats</td>
 <td align="left">TRUE</td>
 </tr>
@@ -447,6 +448,7 @@ dataset</li>
 <td align="left">Multivariate adaptive regression splines</td>
 <td align="left">TRUE</td>
 <td align="left">TRUE</td>
+<td align="left">FALSE</td>
 <td align="left">FALSE</td>
 <td align="left">earth</td>
 <td align="left">TRUE</td>
@@ -457,21 +459,34 @@ dataset</li>
 <td align="left">FALSE</td>
 <td align="left">FALSE</td>
 <td align="left">TRUE</td>
+<td align="left">FALSE</td>
 <td align="left">nnet</td>
 <td align="left">TRUE</td>
 </tr>
 <tr class="even">
+<td align="left">polr</td>
+<td align="left">Proportional odds logistic regression</td>
+<td align="left">FALSE</td>
+<td align="left">FALSE</td>
+<td align="left">FALSE</td>
+<td align="left">TRUE</td>
+<td align="left">MASS</td>
+<td align="left">TRUE</td>
+</tr>
+<tr class="odd">
 <td align="left">rand_forest</td>
 <td align="left">Random forest</td>
+<td align="left">TRUE</td>
 <td align="left">TRUE</td>
 <td align="left">TRUE</td>
 <td align="left">TRUE</td>
 <td align="left">ranger</td>
 <td align="left">TRUE</td>
 </tr>
-<tr class="odd">
+<tr class="even">
 <td align="left">boost_tree</td>
 <td align="left">Gradient boosted trees</td>
+<td align="left">TRUE</td>
 <td align="left">TRUE</td>
 <td align="left">TRUE</td>
 <td align="left">TRUE</td>
@@ -480,18 +495,72 @@ dataset</li>
 </tr>
 </tbody>
 </table>
-<p>Running <code>misl()</code> with a single learner per outcome type is
-the fastest option and is well suited for exploratory work:</p>
-<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>misl_imp <span class="ot">&lt;-</span> <span class="fu">misl</span>(</span>
-<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>  sim_data,</span>
-<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>  <span class="at">m          =</span> <span class="dv">5</span>,</span>
-<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>  <span class="at">maxit      =</span> <span class="dv">5</span>,</span>
-<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>  <span class="at">con_method =</span> <span class="st">&quot;glm&quot;</span>,</span>
-<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>  <span class="at">bin_method =</span> <span class="st">&quot;glm&quot;</span>,</span>
-<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>  <span class="at">cat_method =</span> <span class="st">&quot;multinom_reg&quot;</span>,</span>
-<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>  <span class="at">seed       =</span> <span class="dv">42</span>,</span>
-<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>  <span class="at">quiet      =</span> <span class="cn">TRUE</span></span>
-<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>)</span></code></pre></div>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>knitr<span class="sc">::</span><span class="fu">kable</span>(<span class="fu">list_learners</span>(<span class="st">&quot;ordinal&quot;</span>))</span></code></pre></div>
+<table>
+<colgroup>
+<col width="17%" />
+<col width="55%" />
+<col width="11%" />
+<col width="14%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">learner</th>
+<th align="left">description</th>
+<th align="left">package</th>
+<th align="left">installed</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">polr</td>
+<td align="left">Proportional odds logistic regression</td>
+<td align="left">MASS</td>
+<td align="left">TRUE</td>
+</tr>
+<tr class="even">
+<td align="left">rand_forest</td>
+<td align="left">Random forest</td>
+<td align="left">ranger</td>
+<td align="left">TRUE</td>
+</tr>
+<tr class="odd">
+<td align="left">boost_tree</td>
+<td align="left">Gradient boosted trees</td>
+<td align="left">xgboost</td>
+<td align="left">TRUE</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="basic-usage" class="section level2">
+<h2>Basic usage</h2>
+<p>The primary function is <code>misl()</code>. Supply a dataset and
+specify:</p>
+<ul>
+<li><code>m</code> – the number of multiply imputed datasets to
+create</li>
+<li><code>maxit</code> – the number of Gibbs sampling iterations per
+dataset</li>
+<li><code>con_method</code>, <code>bin_method</code>,
+<code>cat_method</code>, <code>ord_method</code> – learners for each
+outcome type</li>
+</ul>
+<p>Running <code>misl()</code> with a single named learner per outcome
+type is the fastest option and is well suited for exploratory work. Note
+that ordered factors are automatically detected and routed to
+<code>ord_method</code>:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>misl_imp <span class="ot">&lt;-</span> <span class="fu">misl</span>(</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>  sim_data,</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>  <span class="at">m          =</span> <span class="dv">5</span>,</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>  <span class="at">maxit      =</span> <span class="dv">5</span>,</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>  <span class="at">con_method =</span> <span class="st">&quot;glm&quot;</span>,</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>  <span class="at">bin_method =</span> <span class="st">&quot;glm&quot;</span>,</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>  <span class="at">cat_method =</span> <span class="st">&quot;multinom_reg&quot;</span>,</span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>  <span class="at">ord_method =</span> <span class="st">&quot;polr&quot;</span>,</span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>  <span class="at">seed       =</span> <span class="dv">42</span>,</span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>  <span class="at">quiet      =</span> <span class="cn">TRUE</span></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>)</span></code></pre></div>
 <p><code>misl()</code> returns a list of length <code>m</code>. Each
 element contains:</p>
 <ul>
@@ -499,199 +568,256 @@ element contains:</p>
 <li><code>$trace</code> – a long-format tibble of convergence
 statistics</li>
 </ul>
-<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a><span class="co"># Number of imputed datasets</span></span>
-<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a><span class="fu">length</span>(misl_imp)</span>
-<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a><span class="co">#&gt; [1] 5</span></span>
-<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a></span>
-<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a><span class="co"># Confirm no missing values remain</span></span>
-<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a><span class="fu">anyNA</span>(misl_imp[[<span class="dv">1</span>]]<span class="sc">$</span>datasets)</span>
-<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a><span class="co">#&gt; [1] FALSE</span></span>
-<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a></span>
-<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a><span class="co"># Compare observed vs imputed distribution for sbp</span></span>
-<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a>obs_mean <span class="ot">&lt;-</span> <span class="fu">mean</span>(sim_data<span class="sc">$</span>sbp, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a>imp_mean <span class="ot">&lt;-</span> <span class="fu">mean</span>(misl_imp[[<span class="dv">1</span>]]<span class="sc">$</span>datasets<span class="sc">$</span>sbp)</span>
-<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a></span>
-<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Observed mean sbp (non-missing):&quot;</span>, <span class="fu">round</span>(obs_mean, <span class="dv">2</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb5-14"><a href="#cb5-14" tabindex="-1"></a><span class="co">#&gt; Observed mean sbp (non-missing): 147.31</span></span>
-<span id="cb5-15"><a href="#cb5-15" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Imputed mean sbp  (all values): &quot;</span>, <span class="fu">round</span>(imp_mean, <span class="dv">2</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb5-16"><a href="#cb5-16" tabindex="-1"></a><span class="co">#&gt; Imputed mean sbp  (all values):  147.65</span></span>
-<span id="cb5-17"><a href="#cb5-17" tabindex="-1"></a></span>
-<span id="cb5-18"><a href="#cb5-18" tabindex="-1"></a><span class="co"># Check binary imputations are valid</span></span>
-<span id="cb5-19"><a href="#cb5-19" tabindex="-1"></a><span class="fu">table</span>(misl_imp[[<span class="dv">1</span>]]<span class="sc">$</span>datasets<span class="sc">$</span>smoker)</span>
-<span id="cb5-20"><a href="#cb5-20" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb5-21"><a href="#cb5-21" tabindex="-1"></a><span class="co">#&gt;   0   1 </span></span>
-<span id="cb5-22"><a href="#cb5-22" tabindex="-1"></a><span class="co">#&gt; 212  88</span></span>
-<span id="cb5-23"><a href="#cb5-23" tabindex="-1"></a></span>
-<span id="cb5-24"><a href="#cb5-24" tabindex="-1"></a><span class="co"># Check categorical imputations stay within observed levels</span></span>
-<span id="cb5-25"><a href="#cb5-25" tabindex="-1"></a><span class="fu">levels</span>(misl_imp[[<span class="dv">1</span>]]<span class="sc">$</span>datasets<span class="sc">$</span>group)</span>
-<span id="cb5-26"><a href="#cb5-26" tabindex="-1"></a><span class="co">#&gt; [1] &quot;A&quot; &quot;B&quot; &quot;C&quot;</span></span></code></pre></div>
-<div id="multiple-learners-and-stacking" class="section level3">
-<h3>Multiple learners and stacking</h3>
-<p>When multiple learners are supplied, <code>misl</code> uses
-cross-validation to learn optimal ensemble weights via the
-<code>stacks</code> package. Use <code>cv_folds</code> to reduce the
-number of folds and speed up computation:</p>
-<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a>misl_stack <span class="ot">&lt;-</span> <span class="fu">misl</span>(</span>
-<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>  sim_data,</span>
-<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  <span class="at">m          =</span> <span class="dv">5</span>,</span>
-<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>  <span class="at">maxit      =</span> <span class="dv">5</span>,</span>
-<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>  <span class="at">con_method =</span> <span class="fu">c</span>(<span class="st">&quot;glm&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
-<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>  <span class="at">bin_method =</span> <span class="fu">c</span>(<span class="st">&quot;glm&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
-<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>  <span class="at">cat_method =</span> <span class="fu">c</span>(<span class="st">&quot;multinom_reg&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
-<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>  <span class="at">cv_folds   =</span> <span class="dv">3</span>,</span>
-<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>  <span class="at">seed       =</span> <span class="dv">42</span></span>
-<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>)</span></code></pre></div>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="co"># Number of imputed datasets</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a><span class="fu">length</span>(misl_imp)</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a><span class="co"># Confirm no missing values remain</span></span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a><span class="fu">anyNA</span>(misl_imp[[<span class="dv">1</span>]]<span class="sc">$</span>datasets)</span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a><span class="co"># Confirm ordered factor is preserved</span></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a><span class="fu">is.ordered</span>(misl_imp[[<span class="dv">1</span>]]<span class="sc">$</span>datasets<span class="sc">$</span>health)</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a><span class="fu">levels</span>(misl_imp[[<span class="dv">1</span>]]<span class="sc">$</span>datasets<span class="sc">$</span>health)</span></code></pre></div>
 </div>
-<div id="analysing-the-imputed-datasets" class="section level3">
-<h3>Analysing the imputed datasets</h3>
+<div id="custom-learners-via-parsnip" class="section level2">
+<h2>Custom learners via parsnip</h2>
+<p>In addition to the built-in named learners, <code>misl</code> v2.0
+accepts any parsnip-compatible model spec directly. This allows you to
+use any learner available in the tidymodels ecosystem without waiting
+for it to be added to the built-in registry.</p>
+<div id="passing-a-custom-spec" class="section level3">
+<h3>Passing a custom spec</h3>
+<p>Simply pass a parsnip model spec in place of (or alongside) a named
+string. <code>misl</code> will automatically enforce the correct mode
+(regression vs classification) regardless of what is set on the
+spec:</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="fu">library</span>(parsnip)</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a><span class="co"># A random forest with custom hyperparameters</span></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>custom_rf <span class="ot">&lt;-</span> <span class="fu">rand_forest</span>(<span class="at">trees =</span> <span class="dv">500</span>, <span class="at">mtry =</span> <span class="dv">3</span>) <span class="sc">|&gt;</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="fu">set_engine</span>(<span class="st">&quot;ranger&quot;</span>)</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>misl_custom <span class="ot">&lt;-</span> <span class="fu">misl</span>(</span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>  sim_data,</span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>  <span class="at">m          =</span> <span class="dv">5</span>,</span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>  <span class="at">maxit      =</span> <span class="dv">5</span>,</span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a>  <span class="at">con_method =</span> <span class="fu">list</span>(custom_rf),</span>
+<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a>  <span class="at">bin_method =</span> <span class="fu">list</span>(custom_rf),</span>
+<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a>  <span class="at">cat_method =</span> <span class="st">&quot;multinom_reg&quot;</span>,</span>
+<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a>  <span class="at">ord_method =</span> <span class="st">&quot;polr&quot;</span>,</span>
+<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a>  <span class="at">seed       =</span> <span class="dv">42</span>,</span>
+<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a>  <span class="at">quiet      =</span> <span class="cn">TRUE</span></span>
+<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a>)</span></code></pre></div>
+</div>
+<div id="mixing-named-learners-and-custom-specs" class="section level3">
+<h3>Mixing named learners and custom specs</h3>
+<p>Named strings and parsnip specs can be freely mixed in the same list.
+When multiple learners are supplied, <code>misl</code> uses
+cross-validation to build a stacked ensemble:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">library</span>(parsnip)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a></span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a><span class="co"># Mix a named learner with a custom tuned spec</span></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>custom_xgb <span class="ot">&lt;-</span> <span class="fu">boost_tree</span>(<span class="at">trees =</span> <span class="dv">200</span>, <span class="at">learn_rate =</span> <span class="fl">0.05</span>) <span class="sc">|&gt;</span></span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>  <span class="fu">set_engine</span>(<span class="st">&quot;xgboost&quot;</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>misl_mixed <span class="ot">&lt;-</span> <span class="fu">misl</span>(</span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>  sim_data,</span>
+<span id="cb8-9"><a href="#cb8-9" tabindex="-1"></a>  <span class="at">m          =</span> <span class="dv">5</span>,</span>
+<span id="cb8-10"><a href="#cb8-10" tabindex="-1"></a>  <span class="at">maxit      =</span> <span class="dv">5</span>,</span>
+<span id="cb8-11"><a href="#cb8-11" tabindex="-1"></a>  <span class="at">con_method =</span> <span class="fu">list</span>(<span class="st">&quot;glm&quot;</span>, custom_xgb),</span>
+<span id="cb8-12"><a href="#cb8-12" tabindex="-1"></a>  <span class="at">bin_method =</span> <span class="fu">list</span>(<span class="st">&quot;glm&quot;</span>, custom_xgb),</span>
+<span id="cb8-13"><a href="#cb8-13" tabindex="-1"></a>  <span class="at">cat_method =</span> <span class="fu">list</span>(<span class="st">&quot;multinom_reg&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
+<span id="cb8-14"><a href="#cb8-14" tabindex="-1"></a>  <span class="at">ord_method =</span> <span class="fu">list</span>(<span class="st">&quot;polr&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
+<span id="cb8-15"><a href="#cb8-15" tabindex="-1"></a>  <span class="at">cv_folds   =</span> <span class="dv">3</span>,</span>
+<span id="cb8-16"><a href="#cb8-16" tabindex="-1"></a>  <span class="at">seed       =</span> <span class="dv">42</span></span>
+<span id="cb8-17"><a href="#cb8-17" tabindex="-1"></a>)</span></code></pre></div>
+</div>
+<div id="using-a-learner-not-in-the-built-in-registry" class="section level3">
+<h3>Using a learner not in the built-in registry</h3>
+<p>Any parsnip-supported engine can be used. For example, a support
+vector machine via the <code>kernlab</code> package:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">library</span>(parsnip)</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a></span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a><span class="co"># SVM - not in the built-in registry but works via parsnip</span></span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>svm_spec <span class="ot">&lt;-</span> <span class="fu">svm_rbf</span>() <span class="sc">|&gt;</span></span>
+<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>  <span class="fu">set_engine</span>(<span class="st">&quot;kernlab&quot;</span>)</span>
+<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a></span>
+<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a>misl_svm <span class="ot">&lt;-</span> <span class="fu">misl</span>(</span>
+<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>  sim_data,</span>
+<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a>  <span class="at">m          =</span> <span class="dv">5</span>,</span>
+<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>  <span class="at">maxit      =</span> <span class="dv">5</span>,</span>
+<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a>  <span class="at">con_method =</span> <span class="fu">list</span>(<span class="st">&quot;glm&quot;</span>, svm_spec),</span>
+<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a>  <span class="at">bin_method =</span> <span class="fu">list</span>(<span class="st">&quot;glm&quot;</span>, svm_spec),</span>
+<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a>  <span class="at">cat_method =</span> <span class="st">&quot;multinom_reg&quot;</span>,</span>
+<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a>  <span class="at">ord_method =</span> <span class="st">&quot;polr&quot;</span>,</span>
+<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a>  <span class="at">cv_folds   =</span> <span class="dv">3</span>,</span>
+<span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a>  <span class="at">seed       =</span> <span class="dv">42</span></span>
+<span id="cb9-17"><a href="#cb9-17" tabindex="-1"></a>)</span></code></pre></div>
+</div>
+<div id="ordinal-outcomes-and-the-polr-learner" class="section level3">
+<h3>Ordinal outcomes and the polr learner</h3>
+<p>For ordered categorical variables, <code>misl</code> automatically
+detects ordered factors and routes them to <code>ord_method</code>. The
+default learner is <code>&quot;polr&quot;</code> (proportional odds logistic
+regression from the <code>MASS</code> package), which respects the
+ordering of the levels:</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="co"># Ensure your ordered variable is an ordered factor</span></span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>sim_data<span class="sc">$</span>health <span class="ot">&lt;-</span> <span class="fu">factor</span>(sim_data<span class="sc">$</span>health,</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>  <span class="at">levels  =</span> <span class="fu">c</span>(<span class="st">&quot;Poor&quot;</span>, <span class="st">&quot;Fair&quot;</span>, <span class="st">&quot;Good&quot;</span>, <span class="st">&quot;Excellent&quot;</span>),</span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>  <span class="at">ordered =</span> <span class="cn">TRUE</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>)</span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a></span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>misl_ordinal <span class="ot">&lt;-</span> <span class="fu">misl</span>(</span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>  sim_data,</span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>  <span class="at">m          =</span> <span class="dv">5</span>,</span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>  <span class="at">maxit      =</span> <span class="dv">5</span>,</span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a>  <span class="at">con_method =</span> <span class="st">&quot;glm&quot;</span>,</span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a>  <span class="at">bin_method =</span> <span class="st">&quot;glm&quot;</span>,</span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a>  <span class="at">cat_method =</span> <span class="st">&quot;multinom_reg&quot;</span>,</span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a>  <span class="at">ord_method =</span> <span class="st">&quot;polr&quot;</span>,   <span class="co"># proportional odds model for ordered categories</span></span>
+<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a>  <span class="at">seed       =</span> <span class="dv">42</span>,</span>
+<span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a>  <span class="at">quiet      =</span> <span class="cn">TRUE</span></span>
+<span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a>)</span>
+<span id="cb10-18"><a href="#cb10-18" tabindex="-1"></a></span>
+<span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a><span class="co"># Imputed values respect the ordering</span></span>
+<span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a><span class="fu">is.ordered</span>(misl_ordinal[[<span class="dv">1</span>]]<span class="sc">$</span>datasets<span class="sc">$</span>health)</span>
+<span id="cb10-21"><a href="#cb10-21" tabindex="-1"></a><span class="fu">levels</span>(misl_ordinal[[<span class="dv">1</span>]]<span class="sc">$</span>datasets<span class="sc">$</span>health)</span></code></pre></div>
+</div>
+</div>
+<div id="multiple-learners-and-stacking" class="section level2">
+<h2>Multiple learners and stacking</h2>
+<p>When multiple learners are supplied (whether named strings, parsnip
+specs, or a mix), <code>misl</code> uses cross-validation to learn
+optimal ensemble weights via the <code>stacks</code> package. Use
+<code>cv_folds</code> to reduce the number of folds and speed up
+computation:</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>misl_stack <span class="ot">&lt;-</span> <span class="fu">misl</span>(</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>  sim_data,</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>  <span class="at">m          =</span> <span class="dv">5</span>,</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>  <span class="at">maxit      =</span> <span class="dv">5</span>,</span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a>  <span class="at">con_method =</span> <span class="fu">c</span>(<span class="st">&quot;glm&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a>  <span class="at">bin_method =</span> <span class="fu">c</span>(<span class="st">&quot;glm&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a>  <span class="at">cat_method =</span> <span class="fu">c</span>(<span class="st">&quot;multinom_reg&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a>  <span class="at">ord_method =</span> <span class="fu">c</span>(<span class="st">&quot;polr&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a>  <span class="at">cv_folds   =</span> <span class="dv">3</span>,</span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a>  <span class="at">seed       =</span> <span class="dv">42</span></span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a>)</span></code></pre></div>
+</div>
+<div id="analysing-the-imputed-datasets" class="section level2">
+<h2>Analysing the imputed datasets</h2>
 <p>After imputation, fit your analysis model to each of the
 <code>m</code> datasets and pool the results using Rubin’s rules. Here
 we implement pooling manually using base R:</p>
-<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a><span class="co"># Fit a linear model to each imputed dataset</span></span>
-<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>models <span class="ot">&lt;-</span> <span class="fu">lapply</span>(misl_imp, <span class="cf">function</span>(imp) {</span>
-<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="fu">lm</span>(sbp <span class="sc">~</span> age <span class="sc">+</span> bmi <span class="sc">+</span> smoker <span class="sc">+</span> group, <span class="at">data =</span> imp<span class="sc">$</span>datasets)</span>
-<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>})</span>
-<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a></span>
-<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a><span class="co"># Pool point estimates and standard errors using Rubin&#39;s rules</span></span>
-<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>m       <span class="ot">&lt;-</span> <span class="fu">length</span>(models)</span>
-<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>ests    <span class="ot">&lt;-</span> <span class="fu">sapply</span>(models, <span class="cf">function</span>(fit) <span class="fu">coef</span>(fit))</span>
-<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>vars    <span class="ot">&lt;-</span> <span class="fu">sapply</span>(models, <span class="cf">function</span>(fit) <span class="fu">diag</span>(<span class="fu">vcov</span>(fit)))</span>
-<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a></span>
-<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a>Q_bar   <span class="ot">&lt;-</span> <span class="fu">rowMeans</span>(ests)                          <span class="co"># pooled estimate</span></span>
-<span id="cb7-12"><a href="#cb7-12" tabindex="-1"></a>U_bar   <span class="ot">&lt;-</span> <span class="fu">rowMeans</span>(vars)                          <span class="co"># within-imputation variance</span></span>
-<span id="cb7-13"><a href="#cb7-13" tabindex="-1"></a>B       <span class="ot">&lt;-</span> <span class="fu">apply</span>(ests, <span class="dv">1</span>, var)                     <span class="co"># between-imputation variance</span></span>
-<span id="cb7-14"><a href="#cb7-14" tabindex="-1"></a>T_total <span class="ot">&lt;-</span> U_bar <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> <span class="dv">1</span> <span class="sc">/</span> m) <span class="sc">*</span> B                <span class="co"># total variance</span></span>
-<span id="cb7-15"><a href="#cb7-15" tabindex="-1"></a></span>
-<span id="cb7-16"><a href="#cb7-16" tabindex="-1"></a>pooled <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
-<span id="cb7-17"><a href="#cb7-17" tabindex="-1"></a>  <span class="at">term     =</span> <span class="fu">names</span>(Q_bar),</span>
-<span id="cb7-18"><a href="#cb7-18" tabindex="-1"></a>  <span class="at">estimate =</span> <span class="fu">round</span>(Q_bar, <span class="dv">4</span>),</span>
-<span id="cb7-19"><a href="#cb7-19" tabindex="-1"></a>  <span class="at">std.error =</span> <span class="fu">round</span>(<span class="fu">sqrt</span>(T_total), <span class="dv">4</span>),</span>
-<span id="cb7-20"><a href="#cb7-20" tabindex="-1"></a>  <span class="at">conf.low  =</span> <span class="fu">round</span>(Q_bar <span class="sc">-</span> <span class="fl">1.96</span> <span class="sc">*</span> <span class="fu">sqrt</span>(T_total), <span class="dv">4</span>),</span>
-<span id="cb7-21"><a href="#cb7-21" tabindex="-1"></a>  <span class="at">conf.high =</span> <span class="fu">round</span>(Q_bar <span class="sc">+</span> <span class="fl">1.96</span> <span class="sc">*</span> <span class="fu">sqrt</span>(T_total), <span class="dv">4</span>)</span>
-<span id="cb7-22"><a href="#cb7-22" tabindex="-1"></a>)</span>
-<span id="cb7-23"><a href="#cb7-23" tabindex="-1"></a><span class="fu">print</span>(pooled)</span>
-<span id="cb7-24"><a href="#cb7-24" tabindex="-1"></a><span class="co">#&gt;                    term estimate std.error conf.low conf.high</span></span>
-<span id="cb7-25"><a href="#cb7-25" tabindex="-1"></a><span class="co">#&gt; (Intercept) (Intercept) 154.9631    5.1777 144.8148  165.1114</span></span>
-<span id="cb7-26"><a href="#cb7-26" tabindex="-1"></a><span class="co">#&gt; age                 age  -0.0421    0.0577  -0.1552    0.0711</span></span>
-<span id="cb7-27"><a href="#cb7-27" tabindex="-1"></a><span class="co">#&gt; bmi                 bmi  -0.1890    0.1699  -0.5219    0.1439</span></span>
-<span id="cb7-28"><a href="#cb7-28" tabindex="-1"></a><span class="co">#&gt; smoker           smoker  -0.7820    1.5082  -3.7381    2.1740</span></span>
-<span id="cb7-29"><a href="#cb7-29" tabindex="-1"></a><span class="co">#&gt; groupB           groupB  -0.1393    1.7862  -3.6402    3.3617</span></span>
-<span id="cb7-30"><a href="#cb7-30" tabindex="-1"></a><span class="co">#&gt; groupC           groupC  -0.9780    1.6066  -4.1269    2.1709</span></span></code></pre></div>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="co"># Fit a linear model to each imputed dataset</span></span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>models <span class="ot">&lt;-</span> <span class="fu">lapply</span>(misl_imp, <span class="cf">function</span>(imp) {</span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>  <span class="fu">lm</span>(sbp <span class="sc">~</span> age <span class="sc">+</span> bmi <span class="sc">+</span> smoker <span class="sc">+</span> group <span class="sc">+</span> health, <span class="at">data =</span> imp<span class="sc">$</span>datasets)</span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>})</span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a></span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a><span class="co"># Pool point estimates and standard errors using Rubin&#39;s rules</span></span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a>m       <span class="ot">&lt;-</span> <span class="fu">length</span>(models)</span>
+<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a>ests    <span class="ot">&lt;-</span> <span class="fu">sapply</span>(models, <span class="cf">function</span>(fit) <span class="fu">coef</span>(fit))</span>
+<span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a>vars    <span class="ot">&lt;-</span> <span class="fu">sapply</span>(models, <span class="cf">function</span>(fit) <span class="fu">diag</span>(<span class="fu">vcov</span>(fit)))</span>
+<span id="cb12-10"><a href="#cb12-10" tabindex="-1"></a></span>
+<span id="cb12-11"><a href="#cb12-11" tabindex="-1"></a>Q_bar   <span class="ot">&lt;-</span> <span class="fu">rowMeans</span>(ests)                          <span class="co"># pooled estimate</span></span>
+<span id="cb12-12"><a href="#cb12-12" tabindex="-1"></a>U_bar   <span class="ot">&lt;-</span> <span class="fu">rowMeans</span>(vars)                          <span class="co"># within-imputation variance</span></span>
+<span id="cb12-13"><a href="#cb12-13" tabindex="-1"></a>B       <span class="ot">&lt;-</span> <span class="fu">apply</span>(ests, <span class="dv">1</span>, var)                     <span class="co"># between-imputation variance</span></span>
+<span id="cb12-14"><a href="#cb12-14" tabindex="-1"></a>T_total <span class="ot">&lt;-</span> U_bar <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">+</span> <span class="dv">1</span> <span class="sc">/</span> m) <span class="sc">*</span> B                <span class="co"># total variance</span></span>
+<span id="cb12-15"><a href="#cb12-15" tabindex="-1"></a></span>
+<span id="cb12-16"><a href="#cb12-16" tabindex="-1"></a>pooled <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb12-17"><a href="#cb12-17" tabindex="-1"></a>  <span class="at">term      =</span> <span class="fu">names</span>(Q_bar),</span>
+<span id="cb12-18"><a href="#cb12-18" tabindex="-1"></a>  <span class="at">estimate  =</span> <span class="fu">round</span>(Q_bar, <span class="dv">4</span>),</span>
+<span id="cb12-19"><a href="#cb12-19" tabindex="-1"></a>  <span class="at">std.error =</span> <span class="fu">round</span>(<span class="fu">sqrt</span>(T_total), <span class="dv">4</span>),</span>
+<span id="cb12-20"><a href="#cb12-20" tabindex="-1"></a>  <span class="at">conf.low  =</span> <span class="fu">round</span>(Q_bar <span class="sc">-</span> <span class="fl">1.96</span> <span class="sc">*</span> <span class="fu">sqrt</span>(T_total), <span class="dv">4</span>),</span>
+<span id="cb12-21"><a href="#cb12-21" tabindex="-1"></a>  <span class="at">conf.high =</span> <span class="fu">round</span>(Q_bar <span class="sc">+</span> <span class="fl">1.96</span> <span class="sc">*</span> <span class="fu">sqrt</span>(T_total), <span class="dv">4</span>)</span>
+<span id="cb12-22"><a href="#cb12-22" tabindex="-1"></a>)</span>
+<span id="cb12-23"><a href="#cb12-23" tabindex="-1"></a><span class="fu">print</span>(pooled)</span></code></pre></div>
 <p>For a full implementation of Rubin’s rules including degrees of
 freedom and p-values, the <code>mice</code> package provides
 <code>pool()</code> and can be used directly with <code>misl</code>
 output:</p>
-<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a><span class="fu">library</span>(mice)</span>
-<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>pooled_mice <span class="ot">&lt;-</span> <span class="fu">summary</span>(<span class="fu">pool</span>(models), <span class="at">conf.int =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">library</span>(mice)</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>pooled_mice <span class="ot">&lt;-</span> <span class="fu">summary</span>(<span class="fu">pool</span>(models), <span class="at">conf.int =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
 </div>
-<div id="convergence-trace-plots" class="section level3">
-<h3>Convergence: trace plots</h3>
-<p>The <code>$trace</code> element records the mean and standard
-deviation of imputed values at each iteration, which can be used to
-assess convergence:</p>
-<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="co"># Extract trace data across all m datasets</span></span>
-<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>trace <span class="ot">&lt;-</span> <span class="fu">do.call</span>(rbind, <span class="fu">lapply</span>(misl_imp, <span class="cf">function</span>(r) r<span class="sc">$</span>trace))</span>
-<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a></span>
-<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a><span class="co"># Plot mean of imputed sbp values across iterations for each dataset</span></span>
-<span id="cb9-5"><a href="#cb9-5" tabindex="-1"></a>sbp_trace <span class="ot">&lt;-</span> <span class="fu">subset</span>(trace, variable <span class="sc">==</span> <span class="st">&quot;sbp&quot;</span> <span class="sc">&amp;</span> statistic <span class="sc">==</span> <span class="st">&quot;mean&quot;</span>)</span>
-<span id="cb9-6"><a href="#cb9-6" tabindex="-1"></a></span>
-<span id="cb9-7"><a href="#cb9-7" tabindex="-1"></a><span class="fu">plot</span>(</span>
-<span id="cb9-8"><a href="#cb9-8" tabindex="-1"></a>  sbp_trace<span class="sc">$</span>iteration,</span>
-<span id="cb9-9"><a href="#cb9-9" tabindex="-1"></a>  sbp_trace<span class="sc">$</span>value,</span>
-<span id="cb9-10"><a href="#cb9-10" tabindex="-1"></a>  <span class="at">col  =</span> sbp_trace<span class="sc">$</span>m,</span>
-<span id="cb9-11"><a href="#cb9-11" tabindex="-1"></a>  <span class="at">pch  =</span> <span class="dv">16</span>,</span>
-<span id="cb9-12"><a href="#cb9-12" tabindex="-1"></a>  <span class="at">xlab =</span> <span class="st">&quot;Iteration&quot;</span>,</span>
-<span id="cb9-13"><a href="#cb9-13" tabindex="-1"></a>  <span class="at">ylab =</span> <span class="st">&quot;Mean imputed sbp&quot;</span>,</span>
-<span id="cb9-14"><a href="#cb9-14" tabindex="-1"></a>  <span class="at">main =</span> <span class="st">&quot;Trace plot: mean of imputed sbp values&quot;</span>,</span>
-<span id="cb9-15"><a href="#cb9-15" tabindex="-1"></a>  <span class="at">xaxt =</span> <span class="st">&quot;n&quot;</span></span>
-<span id="cb9-16"><a href="#cb9-16" tabindex="-1"></a>)</span>
-<span id="cb9-17"><a href="#cb9-17" tabindex="-1"></a><span class="fu">axis</span>(<span class="dv">1</span>, <span class="at">at =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>)</span>
-<span id="cb9-18"><a href="#cb9-18" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">&quot;topright&quot;</span>, <span class="at">legend =</span> <span class="fu">paste</span>(<span class="st">&quot;m =&quot;</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>),</span>
-<span id="cb9-19"><a href="#cb9-19" tabindex="-1"></a>       <span class="at">col =</span> <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="at">pch =</span> <span class="dv">16</span>, <span class="at">cex =</span> <span class="fl">0.8</span>)</span></code></pre></div>
-<p><img role="img" src="data:image/png;base64,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" /><!-- --></p>
+<div id="convergence-trace-plots" class="section level2">
+<h2>Convergence: trace plots</h2>
+<p>The <code>plot_misl_trace()</code> function plots the mean or
+standard deviation of imputed values across iterations for a given
+variable, with one line per imputed dataset. Stable traces that mix well
+across datasets indicate convergence. Note that trace statistics are
+only computed for continuous and numeric binary columns — they are not
+available for categorical or ordinal columns.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="co"># Plot mean of imputed sbp values across iterations for each dataset</span></span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a><span class="fu">plot_misl_trace</span>(misl_imp, <span class="at">variable =</span> <span class="st">&quot;sbp&quot;</span>, <span class="at">ylab =</span> <span class="st">&quot;Mean imputed sbp (mm Hg)&quot;</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" tabindex="-1"></a><span class="co"># Plot the standard deviation instead</span></span>
+<span id="cb15-2"><a href="#cb15-2" tabindex="-1"></a><span class="fu">plot_misl_trace</span>(misl_imp, <span class="at">variable =</span> <span class="st">&quot;sbp&quot;</span>, <span class="at">statistic =</span> <span class="st">&quot;sd&quot;</span>)</span></code></pre></div>
 <p>Stable traces that mix well across datasets indicate the algorithm
 has converged.</p>
-</div>
 </div>
 <div id="parallelism" class="section level2">
 <h2>Parallelism</h2>
 <p>The <code>m</code> imputed datasets are generated independently and
 can be run in parallel using the <code>future</code> framework. Set a
 parallel plan before calling <code>misl()</code>:</p>
-<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">library</span>(future)</span>
-<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a></span>
-<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a><span class="co"># Use all available cores</span></span>
-<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a><span class="fu">plan</span>(multisession)</span>
-<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a></span>
-<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>misl_parallel <span class="ot">&lt;-</span> <span class="fu">misl</span>(</span>
-<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a>  sim_data,</span>
-<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>  <span class="at">m          =</span> <span class="dv">10</span>,</span>
-<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>  <span class="at">maxit      =</span> <span class="dv">5</span>,</span>
-<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a>  <span class="at">con_method =</span> <span class="fu">c</span>(<span class="st">&quot;glm&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
-<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a>  <span class="at">bin_method =</span> <span class="fu">c</span>(<span class="st">&quot;glm&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
-<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a>  <span class="at">cat_method =</span> <span class="fu">c</span>(<span class="st">&quot;multinom_reg&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
-<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a>  <span class="at">seed       =</span> <span class="dv">42</span></span>
-<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a>)</span>
-<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a></span>
-<span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a><span class="co"># Always reset the plan when done</span></span>
-<span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a><span class="fu">plan</span>(sequential)</span></code></pre></div>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" tabindex="-1"></a><span class="fu">library</span>(future)</span>
+<span id="cb16-2"><a href="#cb16-2" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" tabindex="-1"></a><span class="co"># Use all available cores</span></span>
+<span id="cb16-4"><a href="#cb16-4" tabindex="-1"></a><span class="fu">plan</span>(multisession)</span>
+<span id="cb16-5"><a href="#cb16-5" tabindex="-1"></a></span>
+<span id="cb16-6"><a href="#cb16-6" tabindex="-1"></a>misl_parallel <span class="ot">&lt;-</span> <span class="fu">misl</span>(</span>
+<span id="cb16-7"><a href="#cb16-7" tabindex="-1"></a>  sim_data,</span>
+<span id="cb16-8"><a href="#cb16-8" tabindex="-1"></a>  <span class="at">m          =</span> <span class="dv">10</span>,</span>
+<span id="cb16-9"><a href="#cb16-9" tabindex="-1"></a>  <span class="at">maxit      =</span> <span class="dv">5</span>,</span>
+<span id="cb16-10"><a href="#cb16-10" tabindex="-1"></a>  <span class="at">con_method =</span> <span class="fu">c</span>(<span class="st">&quot;glm&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
+<span id="cb16-11"><a href="#cb16-11" tabindex="-1"></a>  <span class="at">bin_method =</span> <span class="fu">c</span>(<span class="st">&quot;glm&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
+<span id="cb16-12"><a href="#cb16-12" tabindex="-1"></a>  <span class="at">cat_method =</span> <span class="fu">c</span>(<span class="st">&quot;multinom_reg&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
+<span id="cb16-13"><a href="#cb16-13" tabindex="-1"></a>  <span class="at">ord_method =</span> <span class="fu">c</span>(<span class="st">&quot;polr&quot;</span>, <span class="st">&quot;rand_forest&quot;</span>),</span>
+<span id="cb16-14"><a href="#cb16-14" tabindex="-1"></a>  <span class="at">seed       =</span> <span class="dv">42</span></span>
+<span id="cb16-15"><a href="#cb16-15" tabindex="-1"></a>)</span>
+<span id="cb16-16"><a href="#cb16-16" tabindex="-1"></a></span>
+<span id="cb16-17"><a href="#cb16-17" tabindex="-1"></a><span class="co"># Always reset the plan when done</span></span>
+<span id="cb16-18"><a href="#cb16-18" tabindex="-1"></a><span class="fu">plan</span>(sequential)</span></code></pre></div>
 <p>To limit the number of cores:</p>
-<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a><span class="fu">plan</span>(multisession, <span class="at">workers =</span> <span class="dv">4</span>)</span></code></pre></div>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" tabindex="-1"></a><span class="fu">plan</span>(multisession, <span class="at">workers =</span> <span class="dv">4</span>)</span></code></pre></div>
 <p>The largest speedup comes from running the <code>m</code> datasets
-simultaneously. On a machine with 10 cores running <code>m = 10</code>,
-all 10 datasets can be imputed in parallel. Check how many cores are
-available with:</p>
-<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>parallel<span class="sc">::</span><span class="fu">detectCores</span>()</span></code></pre></div>
+simultaneously. Check how many cores are available with:</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" tabindex="-1"></a>parallel<span class="sc">::</span><span class="fu">detectCores</span>()</span></code></pre></div>
 </div>
 <div id="session-info" class="section level2">
 <h2>Session info</h2>
-<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span>
-<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="co">#&gt; R version 4.5.2 (2025-10-31)</span></span>
-<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="co">#&gt; Platform: aarch64-apple-darwin20</span></span>
-<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="co">#&gt; Running under: macOS Sequoia 15.7.4</span></span>
-<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a><span class="co">#&gt; Matrix products: default</span></span>
-<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a><span class="co">#&gt; BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib </span></span>
-<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a><span class="co">#&gt; LAPACK: /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1</span></span>
-<span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a><span class="co">#&gt; locale:</span></span>
-<span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a><span class="co">#&gt; [1] C/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8</span></span>
-<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a><span class="co">#&gt; time zone: America/New_York</span></span>
-<span id="cb13-14"><a href="#cb13-14" tabindex="-1"></a><span class="co">#&gt; tzcode source: internal</span></span>
-<span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb13-16"><a href="#cb13-16" tabindex="-1"></a><span class="co">#&gt; attached base packages:</span></span>
-<span id="cb13-17"><a href="#cb13-17" tabindex="-1"></a><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
-<span id="cb13-18"><a href="#cb13-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb13-19"><a href="#cb13-19" tabindex="-1"></a><span class="co">#&gt; other attached packages:</span></span>
-<span id="cb13-20"><a href="#cb13-20" tabindex="-1"></a><span class="co">#&gt; [1] future_1.70.0 misl_1.0.0   </span></span>
-<span id="cb13-21"><a href="#cb13-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
-<span id="cb13-22"><a href="#cb13-22" tabindex="-1"></a><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
-<span id="cb13-23"><a href="#cb13-23" tabindex="-1"></a><span class="co">#&gt;  [1] gtable_0.3.6        xfun_0.54           bslib_0.9.0        </span></span>
-<span id="cb13-24"><a href="#cb13-24" tabindex="-1"></a><span class="co">#&gt;  [4] ggplot2_4.0.2       recipes_1.3.1       lattice_0.22-7     </span></span>
-<span id="cb13-25"><a href="#cb13-25" tabindex="-1"></a><span class="co">#&gt;  [7] vctrs_0.7.2         tools_4.5.2         generics_0.1.4     </span></span>
-<span id="cb13-26"><a href="#cb13-26" tabindex="-1"></a><span class="co">#&gt; [10] parallel_4.5.2      tibble_3.3.1        pkgconfig_2.0.3    </span></span>
-<span id="cb13-27"><a href="#cb13-27" tabindex="-1"></a><span class="co">#&gt; [13] Matrix_1.7-4        data.table_1.18.2.1 RColorBrewer_1.1-3 </span></span>
-<span id="cb13-28"><a href="#cb13-28" tabindex="-1"></a><span class="co">#&gt; [16] S7_0.2.1            lifecycle_1.0.5     compiler_4.5.2     </span></span>
-<span id="cb13-29"><a href="#cb13-29" tabindex="-1"></a><span class="co">#&gt; [19] farver_2.1.2        codetools_0.2-20    htmltools_0.5.8.1  </span></span>
-<span id="cb13-30"><a href="#cb13-30" tabindex="-1"></a><span class="co">#&gt; [22] class_7.3-23        sass_0.4.10         yaml_2.3.10        </span></span>
-<span id="cb13-31"><a href="#cb13-31" tabindex="-1"></a><span class="co">#&gt; [25] prodlim_2026.03.11  Formula_1.2-5       pillar_1.11.1      </span></span>
-<span id="cb13-32"><a href="#cb13-32" tabindex="-1"></a><span class="co">#&gt; [28] jquerylib_0.1.4     tidyr_1.3.2         MASS_7.3-65        </span></span>
-<span id="cb13-33"><a href="#cb13-33" tabindex="-1"></a><span class="co">#&gt; [31] cachem_1.1.0        gower_1.0.2         plotmo_3.7.0       </span></span>
-<span id="cb13-34"><a href="#cb13-34" tabindex="-1"></a><span class="co">#&gt; [34] rpart_4.1.24        earth_5.3.5         parallelly_1.46.1  </span></span>
-<span id="cb13-35"><a href="#cb13-35" tabindex="-1"></a><span class="co">#&gt; [37] lava_1.8.2          tidyselect_1.2.1    digest_0.6.39      </span></span>
-<span id="cb13-36"><a href="#cb13-36" tabindex="-1"></a><span class="co">#&gt; [40] dplyr_1.2.0         purrr_1.2.1         listenv_0.10.1     </span></span>
-<span id="cb13-37"><a href="#cb13-37" tabindex="-1"></a><span class="co">#&gt; [43] splines_4.5.2       fastmap_1.2.0       parsnip_1.4.1      </span></span>
-<span id="cb13-38"><a href="#cb13-38" tabindex="-1"></a><span class="co">#&gt; [46] grid_4.5.2          cli_3.6.5           magrittr_2.0.4     </span></span>
-<span id="cb13-39"><a href="#cb13-39" tabindex="-1"></a><span class="co">#&gt; [49] survival_3.8-3      future.apply_1.20.2 withr_3.0.2        </span></span>
-<span id="cb13-40"><a href="#cb13-40" tabindex="-1"></a><span class="co">#&gt; [52] scales_1.4.0        plotrix_3.8-14      xgboost_3.2.1.1    </span></span>
-<span id="cb13-41"><a href="#cb13-41" tabindex="-1"></a><span class="co">#&gt; [55] lubridate_1.9.5     timechange_0.4.0    rmarkdown_2.30     </span></span>
-<span id="cb13-42"><a href="#cb13-42" tabindex="-1"></a><span class="co">#&gt; [58] globals_0.19.1      nnet_7.3-20         timeDate_4052.112  </span></span>
-<span id="cb13-43"><a href="#cb13-43" tabindex="-1"></a><span class="co">#&gt; [61] ranger_0.18.0       workflows_1.3.0     evaluate_1.0.5     </span></span>
-<span id="cb13-44"><a href="#cb13-44" tabindex="-1"></a><span class="co">#&gt; [64] knitr_1.50          hardhat_1.4.2       rlang_1.1.7        </span></span>
-<span id="cb13-45"><a href="#cb13-45" tabindex="-1"></a><span class="co">#&gt; [67] Rcpp_1.1.1          glue_1.8.0          sparsevctrs_0.3.6  </span></span>
-<span id="cb13-46"><a href="#cb13-46" tabindex="-1"></a><span class="co">#&gt; [70] ipred_0.9-15        rstudioapi_0.17.1   jsonlite_2.0.0     </span></span>
-<span id="cb13-47"><a href="#cb13-47" tabindex="-1"></a><span class="co">#&gt; [73] R6_2.6.1</span></span></code></pre></div>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span>
+<span id="cb19-2"><a href="#cb19-2" tabindex="-1"></a><span class="co">#&gt; R version 4.5.2 (2025-10-31)</span></span>
+<span id="cb19-3"><a href="#cb19-3" tabindex="-1"></a><span class="co">#&gt; Platform: aarch64-apple-darwin20</span></span>
+<span id="cb19-4"><a href="#cb19-4" tabindex="-1"></a><span class="co">#&gt; Running under: macOS Tahoe 26.4</span></span>
+<span id="cb19-5"><a href="#cb19-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb19-6"><a href="#cb19-6" tabindex="-1"></a><span class="co">#&gt; Matrix products: default</span></span>
+<span id="cb19-7"><a href="#cb19-7" tabindex="-1"></a><span class="co">#&gt; BLAS:   /System/Library/Frameworks/Accelerate.framework/Versions/A/Frameworks/vecLib.framework/Versions/A/libBLAS.dylib </span></span>
+<span id="cb19-8"><a href="#cb19-8" tabindex="-1"></a><span class="co">#&gt; LAPACK: /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1</span></span>
+<span id="cb19-9"><a href="#cb19-9" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb19-10"><a href="#cb19-10" tabindex="-1"></a><span class="co">#&gt; locale:</span></span>
+<span id="cb19-11"><a href="#cb19-11" tabindex="-1"></a><span class="co">#&gt; [1] C/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8</span></span>
+<span id="cb19-12"><a href="#cb19-12" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb19-13"><a href="#cb19-13" tabindex="-1"></a><span class="co">#&gt; time zone: America/New_York</span></span>
+<span id="cb19-14"><a href="#cb19-14" tabindex="-1"></a><span class="co">#&gt; tzcode source: internal</span></span>
+<span id="cb19-15"><a href="#cb19-15" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb19-16"><a href="#cb19-16" tabindex="-1"></a><span class="co">#&gt; attached base packages:</span></span>
+<span id="cb19-17"><a href="#cb19-17" tabindex="-1"></a><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
+<span id="cb19-18"><a href="#cb19-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb19-19"><a href="#cb19-19" tabindex="-1"></a><span class="co">#&gt; other attached packages:</span></span>
+<span id="cb19-20"><a href="#cb19-20" tabindex="-1"></a><span class="co">#&gt; [1] misl_2.0.0</span></span>
+<span id="cb19-21"><a href="#cb19-21" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb19-22"><a href="#cb19-22" tabindex="-1"></a><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
+<span id="cb19-23"><a href="#cb19-23" tabindex="-1"></a><span class="co">#&gt;  [1] vctrs_0.7.2         cli_3.6.5           knitr_1.50         </span></span>
+<span id="cb19-24"><a href="#cb19-24" tabindex="-1"></a><span class="co">#&gt;  [4] rlang_1.1.7         xfun_0.54           Formula_1.2-5      </span></span>
+<span id="cb19-25"><a href="#cb19-25" tabindex="-1"></a><span class="co">#&gt;  [7] data.table_1.18.2.1 jsonlite_2.0.0      glue_1.8.0         </span></span>
+<span id="cb19-26"><a href="#cb19-26" tabindex="-1"></a><span class="co">#&gt; [10] ranger_0.18.0       nnet_7.3-20         htmltools_0.5.8.1  </span></span>
+<span id="cb19-27"><a href="#cb19-27" tabindex="-1"></a><span class="co">#&gt; [13] sass_0.4.10         rmarkdown_2.30      grid_4.5.2         </span></span>
+<span id="cb19-28"><a href="#cb19-28" tabindex="-1"></a><span class="co">#&gt; [16] evaluate_1.0.5      jquerylib_0.1.4     tibble_3.3.1       </span></span>
+<span id="cb19-29"><a href="#cb19-29" tabindex="-1"></a><span class="co">#&gt; [19] MASS_7.3-65         earth_5.3.5         fastmap_1.2.0      </span></span>
+<span id="cb19-30"><a href="#cb19-30" tabindex="-1"></a><span class="co">#&gt; [22] yaml_2.3.10         lifecycle_1.0.5     compiler_4.5.2     </span></span>
+<span id="cb19-31"><a href="#cb19-31" tabindex="-1"></a><span class="co">#&gt; [25] Rcpp_1.1.1          pkgconfig_2.0.3     rstudioapi_0.17.1  </span></span>
+<span id="cb19-32"><a href="#cb19-32" tabindex="-1"></a><span class="co">#&gt; [28] lattice_0.22-7      digest_0.6.39       xgboost_3.2.1.1    </span></span>
+<span id="cb19-33"><a href="#cb19-33" tabindex="-1"></a><span class="co">#&gt; [31] R6_2.6.1            pillar_1.11.1       magrittr_2.0.4     </span></span>
+<span id="cb19-34"><a href="#cb19-34" tabindex="-1"></a><span class="co">#&gt; [34] Matrix_1.7-4        bslib_0.9.0         tools_4.5.2        </span></span>
+<span id="cb19-35"><a href="#cb19-35" tabindex="-1"></a><span class="co">#&gt; [37] plotmo_3.7.0        plotrix_3.8-14      cachem_1.1.0</span></span></code></pre></div>
 </div>
 
 

@@ -2,6 +2,7 @@
 
 export(list_learners)
 export(misl)
+export(plot_misl_trace)
 importFrom(stats,as.formula)
 importFrom(stats,predict)
 importFrom(stats,runif)

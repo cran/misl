@@ -15,6 +15,7 @@ knitr::opts_chunk$set(
   warning   = FALSE,
   message   = FALSE
 )
+library(misl)
 ```
 
 ## Overview
@@ -28,8 +29,8 @@ to handling missing data described in:
 
 Rather than relying on a single parametric imputation model, `misl` builds a
 stacked ensemble of machine learning algorithms for each incomplete column,
-producing well-calibrated imputations for continuous, binary, and categorical
-variables.
+producing well-calibrated imputations for continuous, binary, categorical, and
+ordered categorical variables.
 
 ## Installation
 
@@ -38,12 +39,12 @@ variables.
 remotes::install_github("JustinManjourides/misl")
 
 # Optional backend packages for additional learners
-install.packages(c("ranger", "xgboost", "earth"))
+install.packages(c("ranger", "xgboost", "earth", "MASS"))
 ```
 
 ## Simulated data
 
-We simulate a small dataset with three types of incomplete variables to
+We simulate a small dataset with four types of incomplete variables to
 demonstrate `misl` across all supported outcome types.
 
 ```{r simulate}
@@ -61,18 +62,37 @@ sim_data <- data.frame(
                        0.3 * rnorm(n, mean = 26, sd = 4) + rnorm(n, sd = 10)),
   # Binary outcome with missingness (0 = no, 1 = yes)
   smoker = rbinom(n, 1, prob = 0.3),
-  # Categorical outcome with missingness
+  # Unordered categorical outcome with missingness
   group  = factor(sample(c("A", "B", "C"), n, replace = TRUE,
-                         prob = c(0.4, 0.35, 0.25)))
+                         prob = c(0.4, 0.35, 0.25))),
+  # Ordered categorical outcome with missingness
+  health = factor(sample(c("Poor", "Fair", "Good", "Excellent"), n,
+                         replace = TRUE, prob = c(0.1, 0.2, 0.5, 0.2)),
+                  levels  = c("Poor", "Fair", "Good", "Excellent"),
+                  ordered = TRUE)
 )
 
 # Introduce missing values
 sim_data[sample(n, 40), "sbp"]    <- NA
 sim_data[sample(n, 30), "smoker"] <- NA
 sim_data[sample(n, 30), "group"]  <- NA
+sim_data[sample(n, 30), "health"] <- NA
 
 # Summarise missingness
 sapply(sim_data, function(x) sum(is.na(x)))
+```
+
+## Built-in learners
+
+Use `list_learners()` to see the available named learners, optionally filtered
+by outcome type:
+
+```{r list-learners}
+knitr::kable(list_learners())
+```
+
+```{r list-learners-ordinal}
+knitr::kable(list_learners("ordinal"))
 ```
 
 ## Basic usage
@@ -81,18 +101,14 @@ The primary function is `misl()`. Supply a dataset and specify:
 
 - `m` -- the number of multiply imputed datasets to create
 - `maxit` -- the number of Gibbs sampling iterations per dataset
-- `con_method`, `bin_method`, `cat_method` -- learners for each outcome type
+- `con_method`, `bin_method`, `cat_method`, `ord_method` -- learners for each
+  outcome type
 
-Use `list_learners()` to see available options:
+Running `misl()` with a single named learner per outcome type is the fastest
+option and is well suited for exploratory work. Note that ordered factors are
+automatically detected and routed to `ord_method`:
 
-```{r list-learners}
-knitr::kable(list_learners())
-```
-
-Running `misl()` with a single learner per outcome type is the fastest option
-and is well suited for exploratory work:
-
-```{r basic-usage}
+```{r basic-usage, eval = FALSE}
 misl_imp <- misl(
   sim_data,
   m          = 5,
@@ -100,6 +116,7 @@ misl_imp <- misl(
   con_method = "glm",
   bin_method = "glm",
   cat_method = "multinom_reg",
+  ord_method = "polr",
   seed       = 42,
   quiet      = TRUE
 )
@@ -110,32 +127,139 @@ misl_imp <- misl(
 - `$datasets` -- the fully imputed tibble
 - `$trace`    -- a long-format tibble of convergence statistics
 
-```{r inspect-output}
+```{r inspect-output, eval = FALSE}
 # Number of imputed datasets
 length(misl_imp)
 
 # Confirm no missing values remain
 anyNA(misl_imp[[1]]$datasets)
 
-# Compare observed vs imputed distribution for sbp
-obs_mean <- mean(sim_data$sbp, na.rm = TRUE)
-imp_mean <- mean(misl_imp[[1]]$datasets$sbp)
-
-cat("Observed mean sbp (non-missing):", round(obs_mean, 2), "\n")
-cat("Imputed mean sbp  (all values): ", round(imp_mean, 2), "\n")
-
-# Check binary imputations are valid
-table(misl_imp[[1]]$datasets$smoker)
-
-# Check categorical imputations stay within observed levels
-levels(misl_imp[[1]]$datasets$group)
+# Confirm ordered factor is preserved
+is.ordered(misl_imp[[1]]$datasets$health)
+levels(misl_imp[[1]]$datasets$health)
 ```
 
-### Multiple learners and stacking
+## Custom learners via parsnip
 
-When multiple learners are supplied, `misl` uses cross-validation to learn
-optimal ensemble weights via the `stacks` package. Use `cv_folds` to reduce
-the number of folds and speed up computation:
+In addition to the built-in named learners, `misl` v2.0 accepts any
+parsnip-compatible model spec directly. This allows you to use any learner
+available in the tidymodels ecosystem without waiting for it to be added to the
+built-in registry.
+
+### Passing a custom spec
+
+Simply pass a parsnip model spec in place of (or alongside) a named string.
+`misl` will automatically enforce the correct mode (regression vs
+classification) regardless of what is set on the spec:
+
+```{r custom-spec, eval = FALSE}
+library(parsnip)
+
+# A random forest with custom hyperparameters
+custom_rf <- rand_forest(trees = 500, mtry = 3) |>
+  set_engine("ranger")
+
+misl_custom <- misl(
+  sim_data,
+  m          = 5,
+  maxit      = 5,
+  con_method = list(custom_rf),
+  bin_method = list(custom_rf),
+  cat_method = "multinom_reg",
+  ord_method = "polr",
+  seed       = 42,
+  quiet      = TRUE
+)
+```
+
+### Mixing named learners and custom specs
+
+Named strings and parsnip specs can be freely mixed in the same list. When
+multiple learners are supplied, `misl` uses cross-validation to build a stacked
+ensemble:
+
+```{r mixed-learners, eval = FALSE}
+library(parsnip)
+
+# Mix a named learner with a custom tuned spec
+custom_xgb <- boost_tree(trees = 200, learn_rate = 0.05) |>
+  set_engine("xgboost")
+
+misl_mixed <- misl(
+  sim_data,
+  m          = 5,
+  maxit      = 5,
+  con_method = list("glm", custom_xgb),
+  bin_method = list("glm", custom_xgb),
+  cat_method = list("multinom_reg", "rand_forest"),
+  ord_method = list("polr", "rand_forest"),
+  cv_folds   = 3,
+  seed       = 42
+)
+```
+
+### Using a learner not in the built-in registry
+
+Any parsnip-supported engine can be used. For example, a support vector machine
+via the `kernlab` package:
+
+```{r svm-learner, eval = FALSE}
+library(parsnip)
+
+# SVM - not in the built-in registry but works via parsnip
+svm_spec <- svm_rbf() |>
+  set_engine("kernlab")
+
+misl_svm <- misl(
+  sim_data,
+  m          = 5,
+  maxit      = 5,
+  con_method = list("glm", svm_spec),
+  bin_method = list("glm", svm_spec),
+  cat_method = "multinom_reg",
+  ord_method = "polr",
+  cv_folds   = 3,
+  seed       = 42
+)
+```
+
+### Ordinal outcomes and the polr learner
+
+For ordered categorical variables, `misl` automatically detects ordered factors
+and routes them to `ord_method`. The default learner is `"polr"` (proportional
+odds logistic regression from the `MASS` package), which respects the ordering
+of the levels:
+
+```{r ordinal-example, eval = FALSE}
+# Ensure your ordered variable is an ordered factor
+sim_data$health <- factor(sim_data$health,
+  levels  = c("Poor", "Fair", "Good", "Excellent"),
+  ordered = TRUE
+)
+
+misl_ordinal <- misl(
+  sim_data,
+  m          = 5,
+  maxit      = 5,
+  con_method = "glm",
+  bin_method = "glm",
+  cat_method = "multinom_reg",
+  ord_method = "polr",   # proportional odds model for ordered categories
+  seed       = 42,
+  quiet      = TRUE
+)
+
+# Imputed values respect the ordering
+is.ordered(misl_ordinal[[1]]$datasets$health)
+levels(misl_ordinal[[1]]$datasets$health)
+```
+
+## Multiple learners and stacking
+
+When multiple learners are supplied (whether named strings, parsnip specs, or a
+mix), `misl` uses cross-validation to learn optimal ensemble weights via the
+`stacks` package. Use `cv_folds` to reduce the number of folds and speed up
+computation:
 
 ```{r multi-learner, eval = FALSE}
 misl_stack <- misl(
@@ -145,20 +269,21 @@ misl_stack <- misl(
   con_method = c("glm", "rand_forest"),
   bin_method = c("glm", "rand_forest"),
   cat_method = c("multinom_reg", "rand_forest"),
+  ord_method = c("polr", "rand_forest"),
   cv_folds   = 3,
   seed       = 42
 )
 ```
 
-### Analysing the imputed datasets
+## Analysing the imputed datasets
 
 After imputation, fit your analysis model to each of the `m` datasets and pool
 the results using Rubin's rules. Here we implement pooling manually using base R:
 
-```{r pool-results}
+```{r pool-results, eval = FALSE}
 # Fit a linear model to each imputed dataset
 models <- lapply(misl_imp, function(imp) {
-  lm(sbp ~ age + bmi + smoker + group, data = imp$datasets)
+  lm(sbp ~ age + bmi + smoker + group + health, data = imp$datasets)
 })
 
 # Pool point estimates and standard errors using Rubin's rules
@@ -172,8 +297,8 @@ B       <- apply(ests, 1, var)                     # between-imputation variance
 T_total <- U_bar + (1 + 1 / m) * B                # total variance
 
 pooled <- data.frame(
-  term     = names(Q_bar),
-  estimate = round(Q_bar, 4),
+  term      = names(Q_bar),
+  estimate  = round(Q_bar, 4),
   std.error = round(sqrt(T_total), 4),
   conf.low  = round(Q_bar - 1.96 * sqrt(T_total), 4),
   conf.high = round(Q_bar + 1.96 * sqrt(T_total), 4)
@@ -190,31 +315,23 @@ library(mice)
 pooled_mice <- summary(pool(models), conf.int = TRUE)
 ```
 
-### Convergence: trace plots
+## Convergence: trace plots
 
-The `$trace` element records the mean and standard deviation of imputed values
-at each iteration, which can be used to assess convergence:
+The `plot_misl_trace()` function plots the mean or standard deviation of
+imputed values across iterations for a given variable, with one line per
+imputed dataset. Stable traces that mix well across datasets indicate
+convergence. Note that trace statistics are only computed for continuous
+and numeric binary columns — they are not available for categorical or
+ordinal columns.
 
-```{r trace-plot}
-# Extract trace data across all m datasets
-trace <- do.call(rbind, lapply(misl_imp, function(r) r$trace))
-
+```{r trace-plot, eval = FALSE}
 # Plot mean of imputed sbp values across iterations for each dataset
-sbp_trace <- subset(trace, variable == "sbp" & statistic == "mean")
+plot_misl_trace(misl_imp, variable = "sbp", ylab = "Mean imputed sbp (mm Hg)")
+```
 
-plot(
-  sbp_trace$iteration,
-  sbp_trace$value,
-  col  = sbp_trace$m,
-  pch  = 16,
-  xlab = "Iteration",
-  ylab = "Mean imputed sbp",
-  main = "Trace plot: mean of imputed sbp values",
-  xaxt = "n"
-)
-axis(1, at = 1:5)
-legend("topright", legend = paste("m =", 1:5),
-       col = 1:5, pch = 16, cex = 0.8)
+```{r trace-plot-sd, eval = FALSE}
+# Plot the standard deviation instead
+plot_misl_trace(misl_imp, variable = "sbp", statistic = "sd")
 ```
 
 Stable traces that mix well across datasets indicate the algorithm has
@@ -238,6 +355,7 @@ misl_parallel <- misl(
   con_method = c("glm", "rand_forest"),
   bin_method = c("glm", "rand_forest"),
   cat_method = c("multinom_reg", "rand_forest"),
+  ord_method = c("polr", "rand_forest"),
   seed       = 42
 )
 
@@ -251,9 +369,8 @@ To limit the number of cores:
 plan(multisession, workers = 4)
 ```
 
-The largest speedup comes from running the `m` datasets simultaneously. On a
-machine with 10 cores running `m = 10`, all 10 datasets can be imputed in
-parallel. Check how many cores are available with:
+The largest speedup comes from running the `m` datasets simultaneously. Check
+how many cores are available with:
 
 ```{r detect-cores, eval = FALSE}
 parallel::detectCores()
